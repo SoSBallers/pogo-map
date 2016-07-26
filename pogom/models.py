@@ -113,7 +113,7 @@ def parse_map(map_dict, iteration_num, step, step_location):
     gyms = {}
     scanned = {}
 
-    priority = ["mew","mewtwo","charizard","charmander","dragonite","onix","ninetales","aerodactyl","arcanine","blastoise", 'pikachu']
+    priority = ["mew","mewtwo","charizard","charmander","dragonite","onix","ninetales","aerodactyl","arcanine","blastoise"]
 
     cells = map_dict['responses']['GET_MAP_OBJECTS']['map_cells']
     for cell in cells:
@@ -212,7 +212,7 @@ def sendEmail(p):
         me = "blackboardchecker@gmail.com"
 
         # make family a list of emails that you want priority pokeon to be sent 
-        #family = ["email.example.com"]
+        family = ["anthony.m.benavente@gmail.com"]
         
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
