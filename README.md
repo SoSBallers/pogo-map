@@ -1,5 +1,7 @@
 ## pokemon pokemon pokeemn
 
+based on https://github.com/AHAAAAAAA/PokemonGo-Map
+
 ### instructions:
 
 #### clone this repo 
