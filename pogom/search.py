@@ -4,6 +4,7 @@
 import logging
 import time
 import math
+import traceback
 
 from threading import Thread, Semaphore
 
@@ -13,10 +14,13 @@ from pgoapi.utilities import f2i, get_cellid
 from . import config
 from .models import parse_map
 
+search_thread = Thread()
 log = logging.getLogger(__name__)
 
 TIMESTAMP = '\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000'
 api = PGoApi()
+jobs = []
+main_threads = []
 
 #Constants for Hex Grid
 #Gap between vertical and horzonal "rows"
@@ -136,10 +140,10 @@ def process_search_threads(search_threads, curr_steps, total_steps):
         log.info('Completed {:5.2f}% of scan.'.format(float(curr_steps) / total_steps*100))
     return curr_steps
 
-def search(args, i):
+def search(args, i, origin_loc):
     num_steps = args.step_limit
     total_steps = (3 * (num_steps**2)) - (3 * num_steps) + 1
-    position = (config['ORIGINAL_LATITUDE'], config['ORIGINAL_LONGITUDE'], 0)
+    position = (origin_loc['lat'], origin_loc['lon'], 0)
 
     if api._auth_provider and api._auth_provider._ticket_expire:
         remaining_time = api._auth_provider._ticket_expire/1000 - time.time()
@@ -158,14 +162,6 @@ def search(args, i):
     max_threads = args.num_threads
 
     for step, step_location in enumerate(generate_location_steps(position, num_steps), 1):
-        if 'NEXT_LOCATION' in config:
-            log.info('New location found. Starting new scan.')
-            config['ORIGINAL_LATITUDE'] = config['NEXT_LOCATION']['lat']
-            config['ORIGINAL_LONGITUDE'] = config['NEXT_LOCATION']['lon']
-            config.pop('NEXT_LOCATION', None)
-            search(args, i)
-            return
-
         search_args = (i, total_steps, step_location, step, sem)
         search_threads.append(Thread(target=search_thread, name='search_step_thread {}'.format(step), args=(search_args, )))
 
@@ -177,12 +173,12 @@ def search(args, i):
         process_search_threads(search_threads, curr_steps, total_steps)
 
 
-def search_loop(args):
+def search_loop(args, origin_loc):
     i = 0
     try:
         while True:
             log.info("Map iteration: {}".format(i))
-            search(args, i)
+            search(args, i, origin_loc)
             log.info("Scanning complete.")
             if args.scan_delay > 1:
                 log.info('Waiting {:d} seconds before beginning new scan.'.format(args.scan_delay))
@@ -191,6 +187,26 @@ def search_loop(args):
 
     # This seems appropriate
     except Exception as e:
+        tb = traceback.format_exc()
+        print tb
+        log.info(e)
         log.info('Crashed, waiting {:d} seconds before restarting search.'.format(args.scan_delay))
         time.sleep(args.scan_delay)
-        search_loop(args)
+        search_loop(args, origin_loc)
+
+def master_loop(args):
+    origin_loc = { 
+        'lat': config['ORIGINAL_LATITUDE'],
+        'lon': config['ORIGINAL_LONGITUDE'] 
+    }
+
+    jobs.append(origin_loc)
+
+    ## EVIL POLLING -> migrate to an event based system so master thread can sleep
+    while True:
+        if len(jobs) > 0:
+            current_job = jobs.pop()
+            t = Thread(target=search_loop, args=(args,current_job,))
+            t.daemon = True
+            t.name = 'search_thread_%s_%s' % (current_job['lat'], current_job['lon'])
+            t.start()
