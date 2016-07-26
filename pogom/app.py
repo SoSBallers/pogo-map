@@ -54,10 +54,10 @@ class Pogom(Flask):
 
     def new_loc(self):
         # Get coords from request
-        lat = request.args.get('lat', type=float)
-        lon = request.args.get('lon', type=float)
+        lat = request.form.get('lat', type=float)
+        lon = request.form.get('lon', type=float)
         if not (lat and lon):
-            return 'Bad parameters', 400
+            return 'Bad parameters: %s' % str(request.form), 400
 
         # Start search threads for new location
         config['NEW_JOB'] = {'lat': lat, 'lon': lon}
