@@ -209,14 +209,18 @@ def create_tables():
 def sendEmail(p):
     if not p['encounter_id'] in emailedPokemon:
         emailedPokemon[p['encounter_id']] = True
-        me = "blackboardchecker@gmail.com"
+        with open("ignore/priorityemails.txt",'r') as f:
+          family = f.read().split("\n")
+        with open("ignore/emailauth.txt",'r') as f:
+          me = f.readline()[:-2]
+          pw = f.readline()[:-2]
 
         # make family a list of emails that you want priority pokeon to be sent 
         #family = ["email.example.com"]
         
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
-        server.login(me, "6dG19GGhULzV^m^%e")
+        server.login(me, pw)
         gmapslink = "http://www.google.com/maps/place/%f,%f/@%f,%f,17z" % (p["latitude"],p["longitude"],p["latitude"],p["longitude"])
         msg = "%s \nat location %s\ndisappearing in %d secs\n" % (get_pokemon_name(p["pokemon_data"]["pokemon_id"]),gmapslink,p["time_till_hidden_ms"]/1000)
         server.sendmail(me, family, msg)
